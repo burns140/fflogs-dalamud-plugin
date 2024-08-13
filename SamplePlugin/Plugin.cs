@@ -1,10 +1,17 @@
-﻿using Dalamud.Game.Command;
+using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using SamplePlugin.Windows;
+using System.Linq;
+using FFXIVClientStructs.FFXIV.Client.UI.Info;
+using System;
+using System.Collections.Generic;
+using Lumina.Excel.GeneratedSheets;
+using World = Lumina.Excel.GeneratedSheets.World;
+using System.Diagnostics;
 
 namespace SamplePlugin;
 
@@ -13,14 +20,21 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
 
-    private const string CommandName = "/pmycommand";
+    private const string CommandName = "/fflogs";
 
     public Configuration Configuration { get; init; }
 
     public readonly WindowSystem WindowSystem = new("SamplePlugin");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
+
+    private Dictionary<int, string> NumToWorldMap = new Dictionary<int, string>()
+    {
+        { 35, "Famfrit" }
+    };
 
     public Plugin()
     {
@@ -45,9 +59,6 @@ public sealed class Plugin : IDalamudPlugin
         // This adds a button to the plugin installer entry of this plugin which allows
         // to toggle the display status of the configuration ui
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
-
-        // Adds another button that is doing the same but for the main ui of the plugin
-        PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
     }
 
     public void Dispose()
@@ -62,8 +73,23 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
-        // in response to the slash command, just toggle the display status of our main ui
-        ToggleMainUI();
+        OpenFFLogs();
+    }
+
+    private unsafe void OpenFFLogs()
+    {
+        ChatGui.Print(InfoProxyCrossRealm.GetPartyMemberCount().ToString());
+        var worlds = DataManager.GetExcelSheet<World>().ToArray();
+
+        for (int i = 0; i < InfoProxyCrossRealm.GetPartyMemberCount(); i++)
+        {
+            CrossRealmMember member = *InfoProxyCrossRealm.GetGroupMember((uint)i);
+            var memberHomeWorld = Array.Find(worlds, x => x.RowId == member.HomeWorld).Name;
+
+            string url = $@"https://www.fflogs.com/character/na/{memberHomeWorld}/{member.NameString}";
+            ChatGui.Print(url);
+            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
     }
 
     private void DrawUI() => WindowSystem.Draw();
