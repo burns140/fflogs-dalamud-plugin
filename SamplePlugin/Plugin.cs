@@ -79,7 +79,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             CrossRealmMember member = *InfoProxyCrossRealm.GetGroupMember((uint)i);
             var memberHomeWorld = Array.Find(worlds, x => x.RowId == member.HomeWorld).Name;
-            string url = $@"https://www.fflogs.com/character/na/{memberHomeWorld}/{member.NameString}";
+            var memberNameSplit = member.NameString.Split(" ");
+            string url = $@"https://www.fflogs.com/character/na/{memberHomeWorld}/{memberNameSplit[0]}%20{memberNameSplit[1]}";
             ChatGui.Print(url);
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
         }
